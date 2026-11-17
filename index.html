@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Фруктовый Бум</title>
+<script src="https://unpkg.com"></script>
+<style>
+  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+  body {
+    width: 100vw; height: 100vh; overflow: hidden;
+    font-family: 'Comic Sans MS', 'Segoe UI', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none; background: #4FC3F7;
+  }
+  #bgCanvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  #stage {
+    position: relative; z-index: 2; display: flex; align-items: center; justify-content: center;
+    gap: 20px; width: 100%; height: 100%; max-width: 1020px; padding: 12px;
+  }
+  .panel {
+    background: rgba(255, 253, 245, 0.92); border: 5px solid #8D6E63; border-radius: 30px;
+    padding: 16px; box-shadow: 0 10px 0 #5D4037; width: 230px;
+    display: flex; flex-direction: column; align-items: center;
+    animation: bob 3.5s ease-in-out infinite;
+  }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .badgeTitle {
+    background: #FFB74D; color: #4E342E; padding: 6px 16px; border-radius: 20px;
+    font-size: 15px; font-weight: 900; border: 3px solid #E65100; margin-bottom: 12px;
+  }
+  #evoGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; width: 100%; }
+  .evoItem {
+    background: #FFF8E1; border: 2px solid #FFD54F; border-radius: 12px;
+    padding: 4px 6px; font-size: 12px; font-weight: 800; color: #5D4037;
+  }
+  #jar {
+    position: relative; width: 400px; height: 660px; max-width: 94vw; max-height: 92vh;
+    background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.45) 100%);
+    border: 8px solid #8D6E63; border-top: none; border-radius: 0 0 38px 38px;
+    box-shadow: 0 12px 0 #5D4037, 0 18px 30px rgba(0,0,0,0.28), inset 0 0 25px rgba(255,255,255,0.45);
+    overflow: hidden;
+  }
+  #gameCanvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+  .stat {
+    width: 100%; background: #FFF8E1; border: 3px solid #FFD54F;
+    border-radius: 18px; padding: 8px; text-align: center; margin-bottom: 10px;
+  }
+  .statLbl { font-size: 12px; font-weight: 800; color: #8D6E63; }
+  .statVal { font-size: 30px; font-weight: 900; color: #E65100; }
+  .btnRow { display: flex; gap: 10px; width: 100%; }
+  .toyBtn {
+    flex: 1; height: 48px; border: 3px solid #E65100; border-radius: 16px;
+    background: #FFD54F; font-size: 22px; cursor: pointer; box-shadow: 0 4px 0 #E65100;
+  }
+  .toyBtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #E65100; }
+  #mHud {
+    display: none; position: absolute; top: 8px; left: 8px; right: 8px;
+    flex-direction: column; gap: 6px; pointer-events: none; z-index: 6;
+  }
+  .mRow { display: flex; justify-content: space-between; align-items: center; }
+  .mPill {
+    background: rgba(255, 253, 247, 0.94); border: 3px solid #8D6E63; border-radius: 18px;
+    padding: 4px 12px; font-weight: 900; color: #5D4037; font-size: 15px;
+    box-shadow: 0 3px 0 #5D4037;
+  }
+  .mBtn {
+    pointer-events: auto; width: 38px; height: 38px; border-radius: 50%;
+    border: 3px solid #8D6E63; background: #FFD54F; font-size: 16px;
+    box-shadow: 0 3px 0 #5D4037;
+  }
+  .mChain {
+    background: rgba(255, 253, 247, 0.9); border: 2px solid #FFB74D;
+    border-radius: 14px; padding: 3px 4px; text-align: center; font-size: 13px;
+  }
+  #menu {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle, rgba(255,253,231,0.82) 0%, rgba(255,224,178,0.92) 100%);
+    backdrop-filter: blur(3px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 18px; text-align: center; z-index: 30;
+  }
+  .dance { display: flex; gap: 10px; font-size: 44px; margin-bottom: 10px; }
+  .dance span { animation: jump 1.4s ease-in-out infinite; }
+  .dance span:nth-child(2) { animation-delay: 0.2s; }
+  .dance span:nth-child(3) { animation-delay: 0.4s; }
+  .dance span:nth-child(4) { animation-delay: 0.6s; }
+  @keyframes jump { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-15px) rotate(8deg) scale(1.15); } }
+  #menuTitle { font-size: 32px; font-weight: 900; color: #E65100; text-shadow: 0 2px 0 #FFF; margin-bottom: 8px; }
+  #menuDesc { font-size: 15px; font-weight: 800; color: #4E342E; margin-bottom: 14px; }
+  .chainBox {
+    background: rgba(255,255,255,0.92); border: 3px dashed #FFB74D; border-radius: 20px;
+    padding: 10px; margin-bottom: 20px; width: 100%; font-size: 20px; line-height: 1.5;
+  }
+  .menuBtns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  #playBtn {
+    background: linear-gradient(180deg, #81C784 0%, #43A047 100%); color: #FFF;
+    border: 4px solid #1B5E20; padding: 14px 36px; font-size: 23px; font-weight: 900;
+    border-radius: 50px; cursor: pointer; box-shadow: 0 6px 0 #1B5E20;
+    animation: pulse 1.5s infinite;
+  }
+  #secondChanceBtn {
+    display: none; background: linear-gradient(180deg, #FFB74D 0%, #F57C00 100%); color: #FFF;
+    border: 4px solid #E65100; padding: 14px 22px; font-size: 20px; font-weight: 900;
+    border-radius: 50px; cursor: pointer; box-shadow: 0 6px 0 #E65100;
+  }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  @media (max-width: 850px) {
+    #stage { padding: 8px; }
+    .panel { display: none; }
+    #mHud { display: flex; }
+    #jar { width: 92vw; height: 86vh; border-width: 7px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div id="stage">
+  <div class="panel">
+    <div class="badgeTitle">🌈 Цепочка роста</div>
+    <div id="evoGrid"></div>
+  </div>
+  <div id="jar">
+    <div id="mHud">
+      <div class="mRow">
+        <div class="mPill">⭐ <span id="mScore">0</span></div>
+        <div class="mPill">След: <span id="mNext">🍒</span></div>
+        <div>
+          <button class="mBtn" id="mSnd">🔊</button>
+          <button class="mBtn" id="mRst">🔄</button>
+        </div>
+      </div>
+      <div class="mChain">🍒➔🍓➔🍇➔🍊➔🍎➔🍐➔🍑➔🍍➔🍈➔🍉</div>
+    </div>
+    <div id="menu">
+      <div class="dance"><span>🍒</span><span>🍓</span><span>🍍</span><span>🍉</span></div>
+      <h1 id="menuTitle">ФРУКТОВЫЙ БУМ!</h1>
+      <p id="menuDesc">Соединяй одинаковые вкусняшки, чтобы вырастить Арбуз!</p>
+      <div class="chainBox">🍒 ➔ 🍓 ➔ 🍇 ➔ 🍊 ➔ 🍎<br>🍐 ➔ 🍑 ➔ 🍍 ➔ 🍈 ➔ 🍉</div>
+      <div class="menuBtns">
+        <button id="secondChanceBtn">ВТОРОЙ ШАНС 🎬</button>
+        <button id="playBtn">ИГРАТЬ!</button>
+      </div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+  </div>
+  <div class="panel" style="animation-delay: 0.7s;">
+    <div class="badgeTitle">🏆 Твой урожай</div>
+    <div class="stat"><div class="statLbl">ОЧКИ</div><div class="statVal" id="pcScore">0</div></div>
+    <div class="stat"><div class="statLbl">РЕКОРД</div><div class="statVal" id="pcBest" style="color:#43A047;">0</div></div>
+    <div class="stat"><div class="statLbl">СЛЕДУЮЩИЙ</div><div id="pcNext" style="font-size:42px;">🍒</div></div>
+    <div class="btnRow">
+      <button class="toyBtn" id="pcSnd">🔊</button>
+      <button class="toyBtn" id="pcRst">🔄</button>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  if (window.vkBridge) {
+    vkBridge.send('VKWebAppInit').catch(() => {});
+  }
+
+  const FRUITS = [
+    { name: 'Вишня', r: 18, c1: '#FF5252', c2: '#C62828', leaf: '#4CAF50', icon: '🍒', pts: 2 },
+    { name: 'Клубника', r: 24, c1: '#FF4081', c2: '#AD1457', leaf: '#66BB6A', icon: '🍓', pts: 4 },
+    { name: 'Виноград', r: 31, c1: '#AB47BC', c2: '#6A1B9A', leaf: '#81C784', icon: '🍇', pts: 8 },
+    { name: 'Мандарин', r: 38, c1: '#FFA726', c2: '#EF6C00', leaf: '#43A047', icon: '🍊', pts: 16 },
+    { name: 'Яблоко', r: 46, c1: '#EF5350', c2: '#B71C1C', leaf: '#66BB6A', icon: '🍎', pts: 32 },
+    { name: 'Груша', r: 54, c1: '#D4E157', c2: '#827717', leaf: '#4CAF50', icon: '🍐', pts: 64 },
+    { name: 'Персик', r: 63, c1: '#FF8A65', c2: '#D84315', leaf: '#66BB6A', icon: '🍑', pts: 128 },
+    { name: 'Ананас', r: 72, c1: '#FFEE58', c2: '#F9A825', leaf: '#2E7D32', icon: '🍍', pts: 256 },
+    { name: 'Дыня', r: 82, c1: '#AED581', c2: '#558B2F', leaf: '#33691E', icon: '🍈', pts: 512 },
+    { name: 'Арбуз', r: 94, c1: '#66BB6A', c2: '#1B5E20', leaf: '#A5D6A7', icon: '🍉', pts: 1000 }
+  ];
+
+  const evoGrid = document.getElementById('evoGrid');
+  FRUITS.forEach((f, i) => {
+    const d = document.createElement('div');
+    d.className = 'evoItem';
+    d.textContent = `${f.icon} ${i + 1}. ${f.name}`;
+    evoGrid.appendChild(d);
+  });
+
+  const bgC = document.getElementById('bgCanvas'), bgX = bgC.getContext('2d');
+  const jar = document.getElementById('jar'), cv = document.getElementById('gameCanvas'), ctx = cv.getContext('2d');
+  const menu = document.getElementById('menu'), playBtn = document.getElementById('playBtn');
+  const secondChanceBtn = document.getElementById('secondChanceBtn');
+  let bW = window.innerWidth, bH = window.innerHeight, W = 400, H = 660, sunA = 0;
+
+  const clouds = Array.from({ length: 6 }, (_, i) => ({ x: (bW / 5) * i, y: 40 + Math.random() * 140, s: 0.65 + Math.random() * 0.55, spd: 0.35 + Math.random() * 0.35 }));
+  const butterflies = Array.from({ length: 6 }, (_, i) => ({ x: Math.random() * bW, y: bH * 0.55 + Math.random() * 180, spd: 0.8 + Math.random() * 0.6, ph: i * 1.3, c: ['#FF4081', '#FFEB3B', '#E040FB', '#FF9800'][i % 4] }));
+  const bubbles = Array.from({ length: 12 }, () => ({ x: Math.random() * bW, y: Math.random() * bH, r: 14 + Math.random() * 14, spd: 0.45 + Math.random() * 0.6, wb: Math.random() * 6, icon: FRUITS[Math.floor(Math.random() * 10)].icon }));
+
+  function resize() {
+    bW = bgC.width = window.innerWidth; bH = bgC.height = window.innerHeight;
+    W = cv.width = jar.clientWidth; H = cv.height = jar.clientHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function drawBg() {
+    const g = bgX.createLinearGradient(0, 0, 0, bH);
+    g.addColorStop(0, '#29B6F6'); g.addColorStop(0.55, '#E1F5FE');
+    g.addColorStop(0.55, '#8BC34A'); g.addColorStop(1, '#33691E');
+    bgX.fillStyle = g; bgX.fillRect(0, 0, bW, bH);
+
+    const rbColors = ['rgba(255,82,82,0.28)', 'rgba(255,152,0,0.28)', 'rgba(255,235,59,0.28)', 'rgba(76,175,80,0.28)', 'rgba(33,150,243,0.28)'];
+    rbColors.forEach((col, idx) => {
+      bgX.beginPath();
+      bgX.arc(bW * 0.5, bH * 0.62, Math.min(bW, bH) * 0.52 - idx * 14, Math.PI, 0);
+      bgX.lineWidth = 14; bgX.strokeStyle = col; bgX.stroke();
+    });
+
+    sunA += 0.004; bgX.save(); bgX.translate(75, 75); bgX.rotate(sunA);
+    for (let i = 0; i < 12; i++) {
+      bgX.rotate(Math.PI / 6); bgX.fillStyle = 'rgba(255,238,88,0.26)';
+      bgX.beginPath(); bgX.moveTo(0, 0); bgX.lineTo(-20, 220); bgX.lineTo(20, 220); bgX.fill();
+    }
+    bgX.beginPath(); bgX.arc(0, 0, 42, 0, Math.PI * 2); bgX.fillStyle = '#FFD600'; bgX.fill(); bgX.restore();
+
+    for (const c of clouds) {
+      c.x += c.spd; if (c.x > bW + 120) c.x = -120;
+      bgX.save(); bgX.translate(c.x, c.y); bgX.scale(c.s, c.s); bgX.fillStyle = 'rgba(255,255,255,0.9)';
+      bgX.beginPath(); bgX.arc(0, 0, 30, 0, Math.PI * 2); bgX.arc(26, -8, 36, 0, Math.PI * 2); bgX.arc(56, 0, 28, 0, Math.PI * 2); bgX.fill(); bgX.restore();
+    }
+
+    bgX.fillStyle = '#7CB342';
+    bgX.beginPath(); bgX.ellipse(bW * 0.2, bH * 0.62, bW * 0.55, 95, 0, 0, Math.PI * 2); bgX.fill();
+    bgX.fillStyle = '#689F38';
+    bgX.beginPath(); bgX.ellipse(bW * 0.8, bH * 0.65, bW * 0.6, 110, 0, 0, Math.PI * 2); bgX.fill();
+
+    for (const bf of butterflies) {
+      bf.x += bf.spd; bf.ph += 0.12;
+      if (bf.x > bW + 30) bf.x = -30;
+      const by = bf.y + Math.sin(bf.ph * 0.4) * 20;
+      const wing = Math.abs(Math.sin(bf.ph)) * 10 + 3;
+      bgX.save(); bgX.translate(bf.x, by); bgX.fillStyle = bf.c;
+      bgX.beginPath(); bgX.ellipse(-4, 0, wing, 6, -0.3, 0, Math.PI * 2); bgX.ellipse(4, 0, wing, 6, 0.3, 0, Math.PI * 2); bgX.fill();
+      bgX.restore();
+    }
+
+    for (const b of bubbles) {
+      b.y -= b.spd; b.wb += 0.03; const bx = b.x + Math.sin(b.wb) * 14;
+      if (b.y < -30) { b.y = bH + 30; b.x = Math.random() * bW; }
+      bgX.save(); bgX.beginPath(); bgX.arc(bx, b.y, b.r, 0, Math.PI * 2);
+      bgX.fillStyle = 'rgba(255,255,255,0.28)'; bgX.fill(); bgX.strokeStyle = 'rgba(255,255,255,0.75)'; bgX.lineWidth = 2; bgX.stroke();
+      bgX.font = `${b.r}px Arial`; bgX.textAlign = 'center'; bgX.textBaseline = 'middle'; bgX.fillText(b.icon, bx, b.y + 1); bgX.restore();
+    }
+  }
+  let actx = null, snd = true, mTimer = null, nIdx = 0;
+  const NOTES = [261.6, 329.6, 392.0, 523.3, 392.0, 329.6, 293.7, 349.2, 440.0, 349.2];
+
+  function initAudio() {
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+    } catch (e) {}
+  }
+
+  function startMusic() {
+    if (mTimer) clearInterval(mTimer);
+    mTimer = setInterval(() => {
+      if (!snd || !playing || !actx) return;
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+      o.type = 'sine'; o.frequency.value = NOTES[nIdx++ % NOTES.length];
+      g.gain.setValueAtTime(0.001, t); g.gain.linearRampToValueAtTime(0.035, t + 0.08); g.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + 1.05);
+    }, 650);
+  }
+
+  function popSound(lvl) {
+    if (!snd || !actx) return;
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime, f = 320 + lvl * 45;
+    o.type = 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.4, t + 0.14);
+    g.gain.setValueAtTime(0.16, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + 0.16);
+  }
+
+  function toggleSnd() {
+    snd = !snd;
+    const ic = snd ? '🔊' : '🔇';
+    document.getElementById('pcSnd').textContent = ic;
+    document.getElementById('mSnd').textContent = ic;
+  }
+
+  let balls = [], sparks = [], score = 0, best = Number(localStorage.getItem('vkBoomBest') || 0);
+  let playing = false, over = false, cur = 0, nxt = 1, aimX = W / 2, canDrop = true, overF = 0;
+  let usedSecondChance = false, sixMinAdPending = false;
+  const LINE_Y = 135;
+
+  setInterval(() => {
+    if (playing && !over) sixMinAdPending = true;
+  }, 6 * 60 * 1000);
+
+  function syncUI() {
+    document.getElementById('pcScore').textContent = score;
+    document.getElementById('mScore').textContent = score;
+    if (score > best) { best = score; localStorage.setItem('vkBoomBest', best); }
+    document.getElementById('pcBest').textContent = best;
+    document.getElementById('pcNext').textContent = FRUITS[nxt].icon;
+    document.getElementById('mNext').textContent = FRUITS[nxt].icon;
+  }
+
+  function startGame() {
+    initAudio(); resize();
+    balls = []; sparks = []; score = 0; over = false; canDrop = true; overF = 0;
+    usedSecondChance = false; secondChanceBtn.style.display = 'none';
+    cur = Math.floor(Math.random() * 4); nxt = Math.floor(Math.random() * 4); aimX = W / 2;
+    syncUI(); menu.style.display = 'none'; playing = true; startMusic();
+  }
+
+  function activateSecondChance() {
+    if (usedSecondChance) return;
+    const revive = () => {
+      usedSecondChance = true; over = false; overF = 0;
+      secondChanceBtn.style.display = 'none'; menu.style.display = 'none';
+      const limitY = H * 0.48;
+      for (const b of balls) {
+        if (b.y < limitY) {
+          b.dead = true;
+          for (let k = 0; k < 10; k++) {
+            const a = (Math.PI * 2 * k) / 10;
+            sparks.push({ x: b.x, y: b.y, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, life: 1, c: '#FFD54F' });
+          }
+        }
+      }
+      balls = balls.filter(b => !b.dead);
+      popSound(6); playing = true;
+    };
+
+    if (window.vkBridge) {
+      const prevSnd = snd; snd = false;
+      vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward' })
+        .then(data => {
+          snd = prevSnd;
+          if (data && data.result) revive();
+        })
+        .catch(() => { snd = prevSnd; });
+    } else {
+      revive();
+    }
+  }
+  playBtn.addEventListener('click', startGame);
+  secondChanceBtn.addEventListener('click', activateSecondChance);
+  document.getElementById('pcRst').addEventListener('click', startGame);
+  document.getElementById('mRst').addEventListener('click', startGame);
+  document.getElementById('pcSnd').addEventListener('click', toggleSnd);
+  document.getElementById('mSnd').addEventListener('click', toggleSnd);
+
+  function setAim(cx) {
+    if (!playing || over) return;
+    const r = FRUITS[cur].r, rect = cv.getBoundingClientRect();
+    aimX = Math.max(r + 6, Math.min(W - r - 6, cx - rect.left));
+  }
+
+  function drop() {
+    if (!playing || over || !canDrop) return;
+    if (sixMinAdPending) {
+      sixMinAdPending = false;
+      if (window.vkBridge) {
+        const prevSnd = snd; snd = false; playing = false;
+        vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' })
+          .then(() => { snd = prevSnd; playing = true; })
+          .catch(() => { snd = prevSnd; playing = true; });
+        return;
+      }
+    }
+    canDrop = false;
+    balls.push({ x: aimX, y: 80, vx: 0, vy: 0.4, idx: cur, r: FRUITS[cur].r, born: performance.now(), sq: 1.25 });
+    cur = nxt; nxt = Math.floor(Math.random() * 4); syncUI();
+    setTimeout(() => { canDrop = true; }, 450);
+  }
+
+  cv.addEventListener('mousemove', e => setAim(e.clientX));
+  cv.addEventListener('mousedown', e => setAim(e.clientX));
+  cv.addEventListener('mouseup', drop);
+  cv.addEventListener('touchstart', e => { if (e.touches && e.touches[0]) setAim(e.touches[0].clientX); }, { passive: true });
+  cv.addEventListener('touchmove', e => { if (e.touches && e.touches[0]) setAim(e.touches[0].clientX); }, { passive: true });
+  cv.addEventListener('touchend', drop);
+
+  function physics() {
+    const g = 0.16, steps = 6, dt = 1 / steps;
+    for (let s = 0; s < steps; s++) {
+      for (const b of balls) {
+        b.vy += g * dt; b.vx *= 0.992; b.vy *= 0.992;
+        b.vx = Math.max(-6.5, Math.min(6.5, b.vx)); b.vy = Math.max(-6.5, Math.min(6.5, b.vy));
+        b.x += b.vx * dt; b.y += b.vy * dt; b.sq += (1 - b.sq) * 0.04;
+        if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx) * 0.15; }
+        if (b.x + b.r > W) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.15; }
+        if (b.y + b.r > H) { if (b.vy > 1.5) b.sq = 1.18; b.y = H - b.r; b.vy = -Math.abs(b.vy) * 0.1; b.vx *= 0.85; }
+      }
+      for (let i = 0; i < balls.length; i++) {
+        for (let j = i + 1; j < balls.length; j++) {
+          const a = balls[i], b = balls[j];
+          if (!a || !b || a.dead || b.dead) continue;
+          const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), minD = a.r + b.r;
+          if (dist < minD && dist > 0.001) {
+            if (a.idx === b.idx && a.idx < 9) {
+              a.dead = b.dead = true;
+              const nl = a.idx + 1, nx = (a.x + b.x) / 2, ny = (a.y + b.y) / 2;
+              balls.push({ x: nx, y: ny, vx: 0, vy: 0, idx: nl, r: FRUITS[nl].r, born: performance.now(), sq: 1.35 });
+              score += FRUITS[nl].pts; syncUI(); popSound(nl);
+              for (let k = 0; k < 12; k++) { const ang = (Math.PI * 2 * k) / 12; sparks.push({ x: nx, y: ny, vx: Math.cos(ang) * 3, vy: Math.sin(ang) * 3, life: 1, c: FRUITS[nl].c1 }); }
+              continue;
+            }
+            const mA = a.r * a.r, mB = b.r * b.r, tot = mA + mB, rA = mB / tot, rB = mA / tot;
+            const ov = (minD - dist) * 0.6, nx = dx / dist, ny = dy / dist;
+            a.x -= nx * ov * rA; a.y -= ny * ov * rA; b.x += nx * ov * rB; b.y += ny * ov * rB;
+            const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+            if (vn < 0) { const imp = -1.08 * vn; a.vx -= imp * rA * nx; a.vy -= imp * rA * ny; b.vx += imp * rB * nx; b.vy += imp * rB * ny; a.vx *= 0.94; b.vx *= 0.94; }
+          }
+        }
+      }
+      balls = balls.filter(b => !b.dead);
+    }
+  }
+
+  function drawFruit(x, y, idx, sq = 1) {
+    const f = FRUITS[idx], r = f.r;
+    ctx.save(); ctx.translate(x, y); ctx.scale(sq, 2 - sq);
+    const gr = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+    gr.addColorStop(0, f.c1); gr.addColorStop(1, f.c2);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(4, -r * 0.9, r * 0.28, r * 0.14, -0.4, 0, Math.PI * 2); ctx.fillStyle = f.leaf; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-r * 0.35, -r * 0.35, r * 0.22, r * 0.11, -0.7, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.48)'; ctx.fill();
+    const ex = r * 0.28, ey = -r * 0.04; ctx.fillStyle = '#3E2723';
+    ctx.beginPath(); ctx.arc(-ex, ey, Math.max(2, r * 0.09), 0, Math.PI * 2); ctx.arc(ex, ey, Math.max(2, r * 0.09), 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, ey + r * 0.08, r * 0.15, 0.15 * Math.PI, 0.85 * Math.PI); ctx.lineWidth = Math.max(1.5, r * 0.06); ctx.strokeStyle = '#3E2723'; ctx.stroke();
+    ctx.restore();
+  }
+
+  function loop() {
+    requestAnimationFrame(loop);
+    drawBg();
+    ctx.clearRect(0, 0, W, H);
+    ctx.save(); ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(0, LINE_Y); ctx.lineTo(W, LINE_Y);
+    ctx.strokeStyle = overF > 25 ? '#E53935' : 'rgba(141,110,99,0.45)'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+
+    if (playing && !over) {
+      physics();
+      if (canDrop) {
+        ctx.beginPath(); ctx.moveTo(aimX, 80); ctx.lineTo(aimX, H); ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.stroke();
+        drawFruit(aimX, 80, cur, 1);
+      }
+    }
+
+    let overflow = false; const now = performance.now();
+    for (const b of balls) {
+      drawFruit(b.x, b.y, b.idx, b.sq);
+      if (b.y - b.r < LINE_Y && now - b.born > 2000) overflow = true;
+    }
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const p = sparks[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+      if (p.life <= 0) { sparks.splice(i, 1); continue; }
+      ctx.globalAlpha = p.life; ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    if (playing && !over) {
+      if (overflow) {
+        if (++overF > 120) {
+          over = true;
+          document.getElementById('menuTitle').textContent = 'КОРЗИНКА ПОЛНА!';
+          document.getElementById('menuDesc').textContent = `Ура! Ты набрал ${score} очков!`;
+          playBtn.textContent = 'ЗАНОВО';
+          secondChanceBtn.style.display = usedSecondChance ? 'none' : 'inline-block';
+          menu.style.display = 'flex';
+        }
+      } else overF = 0;
+    }
+  }
+  syncUI(); loop();
+})();
+</script>
+</body>
+</html>
